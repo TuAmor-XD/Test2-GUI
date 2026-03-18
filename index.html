@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MovieScope</title>
+
+  <link rel="stylesheet" href="styles.css">
+
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<div class="layout">
+
+  <!-- HEADER -->
+  <header class="topbar">
+    <h1 class="logo">Movie<span>Scope</span></h1>
+
+    <div class="search-box" data-loading="false">
+      <input id="searchInput" type="text" placeholder="Search movies..." />
+      <div class="loader"></div>
+    </div>
+
+    <div class="status" id="status">READY</div>
+  </header>
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <h3 class="results-title">RESULTS</h3>
+
+    <template id="movieTemplate">
+      <li class="movie-item">
+        <div class="poster">🎬</div>
+        <div class="info">
+          <p class="title"></p>
+          <small class="meta"></small>
+        </div>
+        <span class="rating"></span>
+      </li>
+    </template>
+
+    <ul id="resultsList"></ul>
+  </aside>
+
+  <!-- DETAILS -->
+  <main class="details">
+    <div id="emptyState" class="empty">
+      <p>Select a movie</p>
+    </div>
+
+    <div id="detailView" class="detail hidden">
+      <h2 id="detailTitle"></h2>
+      <p id="detailOverview"></p>
+      <div id="detailGenres"></div>
+    </div>
+  </main>
+
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
