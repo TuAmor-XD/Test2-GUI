@@ -1,109 +1,70 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cine-Search Pro — API Version</title>
-<link rel="stylesheet" href="styles.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MovieScope</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="app.js" defer></script>
 </head>
 <body>
 
 <div class="app">
 
   <header>
-    <div class="wordmark">CINE<span>SEARCH</span> <span style="color:var(--muted);font-size:16px">PRO</span></div>
+    <div class="logo">MOVIE<span style="color:var(--accent)">SCOPE</span></div>
 
-    <div class="search-wrap" data-loading="false">
-      <span class="search-icon">⌕</span>
-      <input id="search-input" type="text" placeholder="Search for a film…" autocomplete="off">
+    <div id="search-wrap" data-loading="false">
+      <input id="search-input" type="text" placeholder="Find a movie..." autocomplete="off">
       <div class="spinner"></div>
     </div>
 
-    <div class="status-bar" id="status-bar">READY</div>
+    <div id="status-bar">READY</div>
   </header>
 
-  <aside class="sidebar">
-    <div class="results-header" id="results-header">RESULTS</div>
+  <aside>
+    <div id="results-header">0 RESULTS</div>
 
-    <!-- ✅ UPDATED TEMPLATE -->
     <template id="result-template">
-      <li class="result-item" tabindex="0">
+      <li class="result-item">
 
-        <!-- poster -->
         <div class="result-poster-placeholder"></div>
 
-        <!-- info -->
         <div class="result-info">
           <div class="result-title"></div>
-
-          <!-- ✅ now used for description -->
           <div class="result-meta"></div>
         </div>
 
-        <!-- rating -->
         <div class="result-rating"></div>
       </li>
     </template>
 
     <ul id="result-list"></ul>
-
-    <div class="keyboard-hint">
-      <span><kbd>↑</kbd><kbd>↓</kbd> navigate</span>
-      <span><kbd>↵</kbd> select</span>
-      <span><kbd>esc</kbd> clear</span>
-    </div>
   </aside>
 
-  <main class="detail-panel">
+  <main>
 
-    <div class="detail-empty" id="detail-empty">
-      <div class="detail-empty-icon">◈</div>
-      <p>SELECT A FILM TO INSPECT</p>
+    <div id="detail-empty">
+      <div style="font-size:40px; margin-bottom:10px;">🎬</div>
+      <p>Select a movie to view details</p>
     </div>
 
-    <div class="detail-content" id="detail-content">
+    <div id="detail-content">
 
-      <!-- backdrop -->
-      <div id="detail-backdrop-wrap"></div>
+      <div id="detail-poster-wrap"></div>
 
-      <div class="detail-backdrop-overlay">
+      <h2 id="detail-title"></h2>
+      <p id="detail-overview"></p>
 
-        <div class="detail-poster-row">
-          <div id="detail-poster-wrap"></div>
+      <div id="detail-cast"></div>
 
-          <div class="detail-title-block">
-            <div class="detail-title" id="detail-title"></div>
-            <div class="detail-tagline" id="detail-tagline"></div>
-            <div class="detail-badges" id="detail-badges"></div>
-          </div>
-        </div>
-
-      </div>
-
-      <div class="detail-grid">
-
-        <div class="detail-section full">
-          <div class="section-label">Overview</div>
-          <p class="overview-text" id="detail-overview"></p>
-        </div>
-
-        <div class="detail-section">
-          <div class="section-label">Cast</div>
-          <div class="cast-grid" id="detail-cast"></div>
-        </div>
-
-        <div class="detail-section">
-          <div class="section-label">Trailer</div>
-          <div id="detail-trailer"></div>
-        </div>
-
-      </div>
+      <div id="detail-trailer"></div>
 
     </div>
+
   </main>
 
 </div>
 
-<script src="app.js"></script>
 </body>
 </html>

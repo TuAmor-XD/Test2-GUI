@@ -13,18 +13,47 @@ const detailContent = document.getElementById('detail-content');
 let debounceTimer = null;
 let controller = null;
 let activeIndex = -1;
+let activeElement = null;
 
-// ✅ CACHE (Requirement 4)
 const cache = new Map();
 
-// ─── Highlight ─────────────────────────
 function highlight(text, query) {
-  if (!query) return text;
-  const regex = new RegExp(`(${query})`, 'gi');
-  return text.replace(regex, `<span class="highlight">$1</span>`);
+  const container = document.createElement('span');
+
+  if (!query) {
+    container.textContent = text;
+    return container;
+  }
+
+  const idx = text.toLowerCase().indexOf(query.toLowerCase());
+
+  if (idx === -1) {
+    container.textContent = text;
+    return container;
+  }
+
+  const before = document.createTextNode(text.slice(0, idx));
+
+  const match = document.createElement('span');
+  match.className = 'highlight';
+  match.textContent = text.slice(idx, idx + query.length);
+
+  const after = document.createTextNode(text.slice(idx + query.length));
+
+  container.appendChild(before);
+  container.appendChild(match);
+  container.appendChild(after);
+
+  return container;
 }
 
-// ─── Render Results (Fragment Pattern) ─────────────────
+function showEmptyState() {
+  detailContent.innerHTML = '';
+  const empty = document.createElement('div');
+  empty.textContent = '🎬 Search for a movie';
+  detailContent.appendChild(empty);
+}
+
 function renderResults(results, query) {
   const frag = document.createDocumentFragment();
 
@@ -37,45 +66,43 @@ function renderResults(results, query) {
     const rating = clone.querySelector('.result-rating');
     const poster = clone.querySelector('.result-poster-placeholder');
 
-    // 🎬 SMALL IMAGE (fixed size)
     const imgUrl = movie.poster_path
       ? `https://image.tmdb.org/t/p/w200${movie.poster_path}`
       : '';
 
-    poster.innerHTML = imgUrl
-      ? `<img src="${imgUrl}" class="poster-small">`
-      : '🎬';
+    poster.textContent = '';
+    if (imgUrl) {
+      const img = document.createElement('img');
+      img.src = imgUrl;
+      img.className = 'poster-small';
+      poster.appendChild(img);
+    } else {
+      poster.textContent = '🎬';
+    }
 
-    // 🎯 TITLE + DESCRIPTION
-    titleEl.innerHTML = highlight(movie.title, query);
+    titleEl.textContent = '';
+    titleEl.appendChild(highlight(movie.title, query));
 
-    const overview = movie.overview
-      ? movie.overview.slice(0, 80) + '...'
-      : 'No description available';
-
-    meta.textContent = overview;
+    meta.textContent = movie.release_date
+      ? movie.release_date.slice(0, 4)
+      : 'No year';
 
     rating.textContent = movie.vote_average
-      ? `★ ${movie.vote_average}`
+      ? `★ ${movie.vote_average.toFixed(1)}`
       : '';
 
-    item.dataset.id = movie.id;
-    item.dataset.idx = i;
-
-    item.addEventListener('click', () => selectMovie(movie.id));
+    item.addEventListener('click', () => selectMovie(movie, item));
 
     frag.appendChild(clone);
   });
 
   resultList.innerHTML = '';
-  resultList.appendChild(frag); // ✅ ONE DOM WRITE
+  resultList.appendChild(frag);
 
   resultHeader.textContent = `${results.length} RESULTS`;
 }
 
-// ─── Search Movies (Debounce + Abort + Cache) ───────────
 function searchMovies(query) {
-  // ✅ CACHE HIT
   if (cache.has(query)) {
     renderResults(cache.get(query), query);
     statusBar.textContent = 'FROM CACHE';
@@ -83,9 +110,8 @@ function searchMovies(query) {
   }
 
   searchWrap.dataset.loading = 'true';
-  statusBar.textContent = 'FETCHING…';
 
-  if (controller) controller.abort(); // ✅ Abort previous
+  if (controller) controller.abort();
   controller = new AbortController();
 
   fetch(`${baseUrl}/search/movie?api_key=${apikey}&query=${query}`, {
@@ -94,88 +120,78 @@ function searchMovies(query) {
     .then(res => res.json())
     .then(data => {
       const results = data.results || [];
-
-      cache.set(query, results); // ✅ SAVE CACHE
-
+      cache.set(query, results);
       renderResults(results, query);
-
-      searchWrap.dataset.loading = 'false';
       statusBar.textContent = `${results.length} RESULTS`;
     })
     .catch(err => {
       if (err.name !== 'AbortError') console.error(err);
+    })
+    .finally(() => {
       searchWrap.dataset.loading = 'false';
-      statusBar.textContent = 'ERROR';
     });
 }
 
-// ─── Select Movie (Promise.allSettled) ────────────────
-async function selectMovie(movieId) {
+async function selectMovie(movie, element) {
+  if (activeElement) activeElement.classList.remove('active');
+
+  activeElement = element;
+  element.classList.add('active');
+
   detailEmpty.style.display = 'none';
-  detailContent.classList.add('visible');
+  detailContent.innerHTML = '';
 
   const urls = [
-    `${baseUrl}/movie/${movieId}?api_key=${apikey}`,
-    `${baseUrl}/movie/${movieId}/credits?api_key=${apikey}`,
-    `${baseUrl}/movie/${movieId}/videos?api_key=${apikey}`
+    `${baseUrl}/movie/${movie.id}?api_key=${apikey}`,
+    `${baseUrl}/movie/${movie.id}/credits?api_key=${apikey}`,
+    `${baseUrl}/movie/${movie.id}/videos?api_key=${apikey}`
   ];
 
-  const [details, credits, videos] = await Promise.allSettled(
+  const [detailsRes, creditsRes, videosRes] = await Promise.allSettled(
     urls.map(url => fetch(url).then(r => r.json()))
   );
 
-  if (details.status === 'fulfilled') renderDetails(details.value);
-  if (credits.status === 'fulfilled') renderCredits(credits.value);
-  if (videos.status === 'fulfilled') renderVideos(videos.value);
-}
+  const details = detailsRes.status === 'fulfilled' ? detailsRes.value : null;
+  const credits = creditsRes.status === 'fulfilled' ? creditsRes.value : null;
+  const videos = videosRes.status === 'fulfilled' ? videosRes.value : null;
 
-// ─── Details UI ─────────────────────────
-function renderDetails(d) {
-  document.getElementById('detail-title').textContent = d.title;
-  document.getElementById('detail-overview').textContent = d.overview;
+  if (details) {
+    const title = document.createElement('h2');
+    title.textContent = details.title;
 
-  const posterWrap = document.getElementById('detail-poster-wrap');
-  posterWrap.innerHTML = d.poster_path
-    ? `<img src="https://image.tmdb.org/t/p/w300${d.poster_path}" class="poster-big">`
-    : '';
-}
+    const overview = document.createElement('p');
+    overview.textContent = details.overview;
 
-// ─── Cast ─────────────────────────
-function renderCredits(c) {
-  const castGrid = document.getElementById('detail-cast');
-  castGrid.innerHTML = '';
+    detailContent.appendChild(title);
+    detailContent.appendChild(overview);
+  }
 
-  c.cast?.slice(0, 6).forEach(actor => {
-    const el = document.createElement('div');
-    el.className = 'cast-item';
+  if (credits) {
+    const cast = document.createElement('p');
+    cast.textContent = credits.cast
+      .slice(0, 5)
+      .map(c => c.name)
+      .join(', ');
 
-    el.innerHTML = `
-      <img src="https://image.tmdb.org/t/p/w185${actor.profile_path}" class="cast-img">
-      <div>${actor.name}</div>
-    `;
+    detailContent.appendChild(cast);
+  }
 
-    castGrid.appendChild(el);
-  });
-}
+  if (videos) {
+    const trailer = videos.results?.find(v => v.type === 'Trailer');
 
-// ─── Trailer ─────────────────────────
-function renderVideos(v) {
-  const trailerEl = document.getElementById('detail-trailer');
-  trailerEl.innerHTML = '';
+    if (trailer) {
+      const btn = document.createElement('button');
+      btn.textContent = '▶ Watch Trailer';
 
-  const trailer = v.results?.find(t => t.type === 'Trailer');
+      btn.addEventListener('click', () => {
+        window.open(`https://youtube.com/watch?v=${trailer.key}`);
+      });
 
-  if (trailer) {
-    trailerEl.innerHTML = `
-      <button class="trailer-btn"
-        onclick="window.open('https://youtube.com/watch?v=${trailer.key}')">
-        ▶ Watch Trailer
-      </button>
-    `;
+      detailContent.appendChild(btn);
+    }
   }
 }
 
-// ─── Input (Debounce 300ms) ─────────────
 searchInput.addEventListener('input', e => {
   clearTimeout(debounceTimer);
 
@@ -183,32 +199,43 @@ searchInput.addEventListener('input', e => {
 
   if (!q) {
     resultList.innerHTML = '';
-    statusBar.textContent = 'READY';
+    showEmptyState();
     return;
   }
 
-  debounceTimer = setTimeout(() => searchMovies(q), 300); // ✅ REQUIRED
+  debounceTimer = setTimeout(() => {
+    activeIndex = -1;
+
+    if (cache.has(q)) {
+      renderResults(cache.get(q), q);
+    } else {
+      searchMovies(q);
+    }
+  }, 300);
 });
 
-// ─── Keyboard Navigation ───────────────
 searchInput.addEventListener('keydown', e => {
   const items = document.querySelectorAll('.result-item');
+
+  if (!items.length) return;
 
   if (e.key === 'ArrowDown') {
     e.preventDefault();
     activeIndex = Math.min(activeIndex + 1, items.length - 1);
-  }
-
-  if (e.key === 'ArrowUp') {
+  } else if (e.key === 'ArrowUp') {
     e.preventDefault();
     activeIndex = Math.max(activeIndex - 1, 0);
-  }
+  } else if (e.key === 'Enter') {
+    if (activeIndex >= 0) {
+      items[activeIndex].click();
+    }
+    return;
+  } else return;
 
-  if (e.key === 'Enter' && activeIndex >= 0) {
-    selectMovie(items[activeIndex].dataset.id);
-  }
+  items.forEach(item => item.classList.remove('active'));
 
-  items.forEach((el, i) =>
-    el.classList.toggle('active', i === activeIndex)
-  );
+  items[activeIndex].classList.add('active');
+  items[activeIndex].scrollIntoView({ block: 'nearest' });
 });
+
+showEmptyState();
